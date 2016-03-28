@@ -1,120 +1,153 @@
+'use strict'
+
 var readTorrent = require('read-torrent'),
-    Q = require('q'),
-    async = require('async'),
-    util = require('util'),
-    LOG = require('debug')('torrent-tracker-health'),
-    Tracker = require('torrent-tracker');
+    Tracker = require('torrent-tracker'),
+    util = require('util');
 
-module.exports = getHealth;
+var _debug = false;
+function debug () {
+    if (!_debug) return;
+    console.log.apply(console, arguments);
+}
 
-var trackerCache = {
-    trackers: {},
-    get: function (tracker) {
-        if (tracker in this.trackers) {
-            return this.trackers[tracker];
-        } else {
-            this.trackers[tracker] = new Tracker(tracker);
-            return this.trackers[tracker];
-        }
-    }
-};
+function rearrange (uri, options, debug) {
+    if (!options) options = {};
 
-function getHealth(uri, options) {
-    if (!options) {
-        options = {};
+    // debug
+    _debug = (debug === true || options.debug) ? true : false;
+
+    // Make sure options.uri is there
+    if (util.isObject(uri)) {
+        options = uri;
+    } else {
+        options.uri = uri;
     }
 
-    if (typeof uri === 'object') {
-        if (!uri.uri) {
-            throw 'No torrent URI specified';
-        } else {
-            options = uri;
-            uri = options.uri;
-        }
+    // Make sure options.blacklist is an array
+    if (!util.isArray(options.blacklist)) {
+        options.blacklist = options.blacklist ? [options.blacklist] : [];
     }
 
-    var defer = Q.defer();
+    // Make sure options.force is an array
+    if (!util.isArray(options.force)) {
+        options.force = options.force ? [options.force] : [];
+    }
 
-    readTorrent(uri, function (err, info) {
-        if (err) {
-            LOG('Error in read-torrent: ' + err.message);
-            return defer.reject(err);
-        } else {
-            if (!util.isArray(info.announce)) {
-                info.announce = [info.announce];
-            }
+    // Set a timeout
+    if (!options.timeout && options.timeout !== false || options.timeout === true) {
+        options.timeout = 400;
+    }
 
-            if (options.force && util.isArray(options.force)) {
-                options.force.forEach(function (trUri) {
-                    if (info.announce.indexOf(trUri) === -1) {
-                        // Add the "forced" trackers to the list
-                        info.announce.push(trUri);
-                    }
-                });
-            }
+    if (!options.uri) {
+        throw 'No torrent URI specified';
+    }
 
-            async.map(info.announce, function (trUri, done) {
-                // Check the tracker URI isn't blacklisted
-                if (options.blacklist && options.blacklist.some(function (regex) {
-                    if (typeof regex === 'string') {
-                        regex = new RegExp(regex);
-                    }
-                    return regex.test(trUri);
-                })) {
-                    // Don't try to scrape it.
-                    return done(null, null);
+    return options;
+}
+
+function read (uri, options, debug) {
+    return new Promise(function (resolve, reject) {
+        options = rearrange(uri, options, debug);
+
+        readTorrent(options.uri, function (err, info) {
+            if (!err) {
+                var trackers = [];
+
+                // Make sure info.announce is an array
+                if (!util.isArray(info.announce)) {
+                    info.announce = info.announce ? [info.announce] : [];
                 }
 
-                LOG('Obtaining tracker for ' + trUri);
-                var tracker = trackerCache.get(trUri);
-                tracker.scrape([info.infoHash], {
+                // Remove the "blacklisted" trackers from the list
+                for (var i = 0; i < info.announce.length; i++) {
+                    if (!options.blacklist.some(function (regex) {
+                        if (util.isString(regex)) {
+                            regex = new RegExp(regex);
+                        }
+                        return regex.test(info.announce[i]);
+                    })) {
+                        trackers.push(info.announce[i]);
+                    }
+                }
+
+                // Add the "forced" trackers to the list
+                for (var i = 0; i < options.force.length; i++) {
+                    if (trackers.indexOf(options.force[i]) === -1) {
+                        trackers.push(options.force[i]);
+                    }
+                }
+
+                resolve({
+                    hash: info.infoHash,
+                    trackers: trackers,
                     timeout: options.timeout
-                }, function (err, data) {
-                    if (err) {
-                        if (err.message === 'timed out' || err.code === 'ETIMEDOUT') {
-                            LOG('Scrape timed out for ' + trUri);
-                            return done(null, null);
-                        } else {
-                            LOG('Error in torrent-tracker: ' + err.message);
-                            return done(err, null);
-                        }
-                    } else {
-                        return done(null, {
-                            seeds: data[info.infoHash].seeders,
-                            peers: data[info.infoHash].leechers
-                        });
-                    }
                 });
-            }, function (err, results) {
+            } else {
+                debug('Error in read-torrent: ' + err.message);
+                reject(err);
+            }
+        });
+    });
+}
+
+function scrape (req) {
+    return Promise.all(req.trackers.map(function (trUri) {
+        return new Promise(function (resolve, reject) {
+            debug('Obtaining tracker for ' + trUri);
+            var tracker = new Tracker(trUri);
+            var begin = Date.now();
+            tracker.scrape([req.hash], {
+                timeout: req.timeout
+            }, function (err, data) {
                 if (err) {
-                    LOG('Error: ' + err.message);
-                    return defer.reject(err);
-                } else {
-                    var totalSeeds = 0,
-                        totalPeers = 0,
-                        total = 0;
-                    results.forEach(function (result) {
-                        if (!result) {
-                            return;
-                        }
-                        totalSeeds += result.seeds | 0;
-                        totalPeers += result.peers | 0;
-                        total++;
-                    });
-
-                    // Avoid divide-by-zero issues
-                    if (total === 0) {
-                        total = 1;
+                    if (err.message === 'timed out' || err.code === 'ETIMEDOUT') {
+                        debug('Scrape timed out for ' + trUri);
+                    } else {
+                        debug('Error in torrent-tracker: ' + err.message);
                     }
-
-                    return defer.resolve({
-                        seeds: Math.round(totalSeeds / total) | 0,
-                        peers: Math.round(totalPeers / total) | 0
+                    resolve({
+                        tracker: trUri,
+                        error: err.message
+                    });
+                } else {
+                    debug('Scrape successful for ' + trUri);
+                    resolve({
+                        tracker: trUri,
+                        response_time: Date.now() - begin,
+                        seeds: data[req.hash].seeders,
+                        peers: data[req.hash].leechers
                     });
                 }
             });
-        }
-    });
-
-    return defer.promise;
+        });
+    }));
 }
+
+function calc (res) {
+    var totalSeeds = 0,
+        totalPeers = 0,
+        total = 0;
+
+    for (var i = 0; i < res.length; i++) {
+        if (!res[i].error) {
+            totalSeeds += res[i].seeds | 0;
+            totalPeers += res[i].peers | 0;
+            total++;
+        }
+    };
+
+    // Avoid divide-by-zero issues
+    if (total === 0) total = 1;
+
+    return {
+        seeds: Math.round(totalSeeds / total),
+        peers: Math.round(totalPeers / total),
+        results: res
+    };
+}
+
+module.exports = function (uri, options, debug) {
+    return read(uri, options, debug)
+        .then(scrape)
+        .then(calc);
+};
