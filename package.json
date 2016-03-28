@@ -1,6 +1,6 @@
 {
     "name": "torrent-tracker-health",
-    "version": "0.1.7",
+    "version": "1.0.0",
     "description": "Get health info about a torrent file or magnet link",
     "main": "index.js",
     "repository": {
