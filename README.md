@@ -1,13 +1,15 @@
-torrent-tracker-health
+Dessalines Torrent-Tracker-Health
 ==============
 
-Get health info for torrents. This module is based on [torrent-tracker](https://github.com/vankasteelj/torrent-tracker) and returns the number of seeds and peers.
+Get health info for torrents. This module is based on [torrent-tracker](https://github.com/vankasteelj/torrent-tracker) and returns the seeds, peers, completed, and information about a torrent, given a magnet link or torrent file.
 
 ## Quickstart
 
-    npm install torrent-tracker-health
+    npm install dessalines/torrent-tracker-health
 
 ## Usage
+
+### Code
 
 ```js
 var torrentHealth = require('torrent-tracker-health');
@@ -21,6 +23,43 @@ torrentHealth(magnet).then(function (res) {
     console.log('error:', err);
 });
 ```
+
+### Global
+
+```sh
+$ npm i -g dessalines/torrent-tracker-health
+$ torrent-tracker-health -h
+Usage: torrent-tracker-health [options]
+  --torrent: the torrent file or magnet link
+  --timeout: millisecond timeout
+  --addTrackers={tracker1/announce, tracker2/announce} or --addTrackers=tracker1/announce
+```
+
+### Output
+
+```json
+$ torrent-tracker-health --torrent ~/torrents/fidel.torrent
+{
+  "name": "cbc.the.passionate.eye.fidel.the.untold.story",
+  "hash": "098dc84dfbeb446ae839d2c45cdbb73d59b28c7a",
+  "length": 1443099561,
+  "created": "2017-08-26T21:53:27.000Z",
+  "seeds": 2,
+  "peers": 0,
+  "completed": 573,
+  "results": [
+    {
+      "tracker": "udp://tracker.pirateparty.gr:6969/announce",
+      "response_time": 534,
+      "seeds": 2,
+      "peers": 0,
+      "completed": 573
+    },
+    ...
+  ]
+}
+```
+
 
 ## Options
 
@@ -105,4 +144,4 @@ torrentHealth(magnet).then(function (res) {
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 
-This is a complete rewrite of torrent-health by Slashmanx.
+This is a complete rewrite of torrent-health by Slashmanx, and Dessalines.

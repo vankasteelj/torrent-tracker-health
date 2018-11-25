@@ -60,13 +60,18 @@ function read (uri, options, debug) {
 
                 // Remove the "blacklisted" trackers from the list
                 for (var i = 0; i < info.announce.length; i++) {
+                    var announce = info.announce[i];
+                    if (announce.indexOf('/announce') === -1) {
+                        announce += '/announce';
+                    }
+
                     if (!options.blacklist.some(function (regex) {
                         if (util.isString(regex)) {
                             regex = new RegExp(regex);
                         }
-                        return regex.test(info.announce[i]);
+                        return regex.test(announce);
                     })) {
-                        trackers.push(info.announce[i]);
+                        trackers.push(announce);
                     }
                 }
 
@@ -78,7 +83,10 @@ function read (uri, options, debug) {
                 }
 
                 resolve({
+                    name: info.name,
                     hash: info.infoHash,
+                    length: info.length,
+                    created: info.created,
                     trackers: trackers,
                     timeout: options.timeout
                 });
@@ -106,16 +114,25 @@ function scrape (req) {
                         debug('Error in torrent-tracker: ' + err.message);
                     }
                     resolve({
+                        name: req.name,
+                        hash: req.hash,
+                        length: req.length,
+                        created: req.created,
                         tracker: trUri,
                         error: err.message
                     });
                 } else {
                     debug('Scrape successful for ' + trUri);
                     resolve({
+                        name: req.name,
+                        hash: req.hash,
+                        length: req.length,
+                        created: req.created,
                         tracker: trUri,
                         response_time: Date.now() - begin,
                         seeds: data[req.hash].seeders,
-                        peers: data[req.hash].leechers
+                        peers: data[req.hash].leechers,
+                        completed: data[req.hash].completed
                     });
                 }
             });
@@ -124,24 +141,35 @@ function scrape (req) {
 }
 
 function calc (res) {
-    var totalSeeds = 0,
-        totalPeers = 0,
-        total = 0;
+    var maxSeeds = 0,
+        maxPeers = 0,
+        maxCompleted = 0;
+
+    var name = res[0].name;
+    var hash = res[0].hash;
+    var length = res[0].length;
+    var created = res[0].created;
 
     for (var i = 0; i < res.length; i++) {
         if (!res[i].error) {
-            totalSeeds += res[i].seeds | 0;
-            totalPeers += res[i].peers | 0;
-            total++;
+            maxSeeds = Math.max(res[i].seeds,maxSeeds);
+            maxPeers = Math.max(res[i].peers,maxPeers);
+            maxCompleted = Math.max(res[i].completed,maxCompleted);
         }
+        delete res[i].name;
+        delete res[i].hash;
+        delete res[i].length;
+        delete res[i].created;
     };
 
-    // Avoid divide-by-zero issues
-    if (total === 0) total = 1;
-
     return {
-        seeds: Math.round(totalSeeds / total),
-        peers: Math.round(totalPeers / total),
+        name: name,
+        hash: hash,
+        length: length,
+        created: created,
+        seeds: maxSeeds,
+        peers: maxPeers,
+        completed: maxCompleted,
         results: res
     };
 }
@@ -149,5 +177,5 @@ function calc (res) {
 module.exports = function (uri, options, debug) {
     return read(uri, options, debug)
         .then(scrape)
-        .then(calc);
+        .then(calc)
 };
