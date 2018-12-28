@@ -2,7 +2,6 @@
 
 var fs = require('fs');
 var torrentHealth = require('./index.js');
-// var torrentHealth = require('torrent-tracker-health');
 
 var argv = require('minimist')(process.argv.slice(2));
 

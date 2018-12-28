@@ -1,11 +1,11 @@
-Dessalines Torrent-Tracker-Health
+Torrent-Tracker-Health
 ==============
 
 Get health info for torrents. This module is based on [torrent-tracker](https://github.com/vankasteelj/torrent-tracker) and returns the seeds, peers, completed, and information about a torrent, given a magnet link or torrent file.
 
 ## Quickstart
 
-    npm install dessalines/torrent-tracker-health
+    npm install -g torrent-tracker-health
 
 ## Usage
 
@@ -27,7 +27,7 @@ torrentHealth(magnet).then(function (res) {
 ### Global
 
 ```sh
-$ npm i -g dessalines/torrent-tracker-health
+$ npm i -g torrent-tracker-health
 $ torrent-tracker-health -h
 Usage: torrent-tracker-health [options]
   --torrent: the torrent file or magnet link
@@ -144,4 +144,4 @@ $ torrent-tracker-health --torrent ~/torrents/fidel.torrent
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 
-This is a complete rewrite of torrent-health by Slashmanx, and Dessalines.
+This is a complete rewrite of torrent-health by Slashmanx.
