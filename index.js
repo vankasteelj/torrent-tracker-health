@@ -3,7 +3,7 @@ var utils = require('./utils'),
   readTorrent = require('read-torrent');
 
 function read(uri, options) {
-  return new Promise(async function (resolve, reject) {
+  return new Promise(async (resolve, reject) => {
     var uris = [];
 
     // If its a torrent directory, collect them up
@@ -20,8 +20,8 @@ function read(uri, options) {
 }
 
 function singleRead(uri, options) {
-  return new Promise(function (resolve, reject) {
-    readTorrent(uri, function (err, info) {
+  return new Promise((resolve, reject) => {
+    readTorrent(uri, (err, info) => {
       if (!err) {
 
         // Make sure info.announce is an array
@@ -55,14 +55,14 @@ function scrape(req) {
   var promises = [];
 
   // Loop over trackers
-  req.options.trackers.map(function (trUri) {
+  req.options.trackers.map(trUri => {
     var hashes = req.torrents.map(t => t.hash);
 
     // Do in 50 torrent batches
     for (var i = 0; i < hashes.length; i += req.options.batchSize) {
-      promises.push(new Promise(function (resolve, reject) {
+      promises.push(new Promise((resolve, reject) => {
         var subhashes = hashes.slice(i, i + req.options.batchSize);
-        Client.scrape({ announce: trUri, infoHash: subhashes }, function (err, data) {
+        Client.scrape({ announce: trUri, infoHash: subhashes }, (err, data) => {
           if (err) {
             if (err.message === 'timed out' || err.code === 'ETIMEDOUT') {
               utils.debug('Scrape timed out for ' + trUri);

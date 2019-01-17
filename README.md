@@ -1,11 +1,10 @@
-Torrent-Tracker-Health
-==============
+# Torrent-Tracker-Health
 
-Get health info for torrents. This module is based on [torrent-tracker](https://github.com/vankasteelj/torrent-tracker) and returns the seeds, peers, completed, and information about a torrent, given a magnet link or torrent file.
+Get health info for torrents. This module is based on [torrent-tracker](https://github.com/vankasteelj/torrent-tracker) and returns the seeds, peers, completed, and information about torrents, given a file, magnet link, or directory.
 
 ## Quickstart
 
-    npm install -g torrent-tracker-health
+`$ npm install -g torrent-tracker-health`
 
 ## Usage
 
@@ -13,135 +12,64 @@ Get health info for torrents. This module is based on [torrent-tracker](https://
 
 ```js
 var torrentHealth = require('torrent-tracker-health');
-var magnet = 'magnet:?xt=urn:btih:9A7290F4021048D2C176A84828E441FCB5400FB1&dn=charlie+chaplin+15+short+films+1914+1917+dvdrip&tr=udp://tracker.coppersurfer.tk:6969/announce&tr=udp://glotorrents.pw:6969/announce&tr=udp://tracker.openbittorrent.com:80/announce';
-
-torrentHealth(magnet).then(function (res) {
-    console.log('seeds:', res.seeds);
-    console.log('peers:', res.peers);
-    console.log('ratio:', +(Math.round((res.peers > 0 ? res.seeds / res.peers : res.seeds) +'e+2') + 'e-2'));
-}).catch(function (err) {
-    console.log('error:', err);
+var uri = // Could be a magnet link, torrent file location, or torrent directory.
+torrentHealth(uri, options).then(res => {
+    console.log(res);
 });
 ```
 
-### Global
+### Global / CLI and options
 
 ```sh
 $ npm i -g torrent-tracker-health
 $ torrent-tracker-health -h
 Usage: torrent-tracker-health [options]
-  --torrent: the torrent file or magnet link
-  --timeout: millisecond timeout
-  --addTrackers={tracker1/announce, tracker2/announce} or --addTrackers=tracker1/announce
+  --torrent: the torrent file, magnet link, or torrent dir
+  --trackers= [Optional] {tracker1/announce, tracker2/announce}, uses a default list otherwise
+  --batchSize: [Optional] The number of torrents to include in the scrape request (Default 50)
+  --showAllFetches: [Optional] Shows all the scrapes, instead of choosing the one with the most seeders(Default false)
+  --debug: [Optional] (Default false)
 ```
 
 ### Output
 
 ```json
-$ torrent-tracker-health --torrent ~/torrents/fidel.torrent
+$ torrent-tracker-health --torrent test_torrent_dir
 {
-  "name": "cbc.the.passionate.eye.fidel.the.untold.story",
-  "hash": "098dc84dfbeb446ae839d2c45cdbb73d59b28c7a",
-  "length": 1443099561,
-  "created": "2017-08-26T21:53:27.000Z",
-  "seeds": 2,
-  "peers": 0,
-  "completed": 573,
   "results": [
     {
-      "tracker": "udp://tracker.pirateparty.gr:6969/announce",
-      "response_time": 534,
-      "seeds": 2,
-      "peers": 0,
-      "completed": 573
+      "name": "Lenin - The State and Revolution [audiobook] by dessalines",
+      "hash": "bf60338d499a40e4e99ca8edffda9447402a29de",
+      "length": 293313300,
+      "created": "2016-10-14T07:03:14.000Z",
+      "files": [...],
+      "tracker": "udp://tracker.coppersurfer.tk:6969/announce",
+      "seeders": 12,
+      "leechers": 2,
+      "completed": 2598
     },
-    ...
-  ]
+    {
+      "name": "Trotsky - Fascism - What it is and How to Fight it [audiobook] by dessalines",
+      "hash": "d1f28f0c1b89ddd9a39205bef0be3715d117f91b",
+      "length": 134145561,
+      "created": "2016-11-13T13:12:47.000Z",
+      "files": [...],
+      "tracker": "udp://exodus.desync.com:6969/announce",
+      "seeders": 3,
+      "leechers": 0,
+      "completed": 73
+    }
+  ],
+  "options": {
+    "batchSize": 50,
+    "trackers": [
+      "udp://tracker.coppersurfer.tk:6969/announce",
+      "udp://tracker.internetwarriors.net:1337/announce",
+      "udp://tracker.opentrackr.org:1337/announce",
+      "udp://exodus.desync.com:6969/announce",
+      "udp://explodie.org:6969/announce"
+    ],
+    "showAllFetches": false
+  }
 }
 ```
-
-
-## Options
-
-- `blacklist`: prevent forcefully to connect to the said tracker(s)
-  - a String, a RegExp, an Array of Strings or an Array of RegExps
-  - example: _prevents connection to any tracker on openbittorrent.com and any tracker using port 80_
-    ```js
-    torrentHealth(magnet, {
-        blacklist: ['openbittorrent.com', ':80']
-    });
-    ```
-- `timeout`: timeout in milliseconds before a call to the tracker ends. Defaults on 400.
-  - example: _don't try to connect to tracker for more than 10 seconds_
-    ```js
-    torrentHealth(magnet, {
-        timeout: 10000
-    });
-    ```
-
-- `force`: force a tracker to be added to the magnet's list of trackers.
-  - a String, an Array of Strings
-  - example: _add udp://mycustomtracker.com:6969/announce to the list of trackers_
-    ```js
-    torrentHealth(magnet, {
-        force: ['udp://mycustomtracker.com:6969/announce']
-    });
-    ```
-
-- `debug`: print various messages to `console.log`. Default to `false`
-  - example:
-    ```js
-    torrentHealth(magnet, {
-        debug: true
-    });
-    ```
-
-## Going further
-- The module can accept different inputs.
-  - By default, it is: `torrentHealth(magnet [, options, debug])`
-  - An object can be used alone: 
-    ```js
-    torrentHealth({
-        uri: magnet,
-        timeout: 1000,
-        force: ['udp://mycustomtracker.com:6969/announce'],
-        blacklist: ['openbittorrent'],
-        debug: true
-    });
-    ```
-
-- If the module couldn't contact any of the trackers, it will give an output of: 
-```js
-{
-    seeds: 0,
-    peers: 0
-}
-```
-
-- The output contains a `results` Array, which has information on specific trackers that were called, and their respective responses.
-
-
---------
-
-## License
-    The MIT License (MIT)
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-This is a complete rewrite of torrent-health by Slashmanx.
