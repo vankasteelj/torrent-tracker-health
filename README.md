@@ -73,3 +73,7 @@ $ torrent-tracker-health --torrent test_torrent_dir
   }
 }
 ```
+
+### Testing
+
+`npm test`
