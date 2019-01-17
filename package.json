@@ -1,6 +1,6 @@
 {
   "name": "torrent-tracker-health",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Get health info about a torrent file or magnet link",
   "main": "index.js",
   "bin": {
@@ -15,14 +15,24 @@
     {
       "name": "vankasteelj",
       "email": "vankasteelj@gmail.com"
+    },
+    {
+      "name": "Dessalines",
+      "email": "dessalines790@gmail.com"
     }
   ],
+  "scripts": {
+    "test": "jest"
+  },
   "engines": {
-    "node": ">= 0.12.0"
+    "node": ">= 8.0.0"
   },
   "dependencies": {
+    "bittorrent-tracker": "^9.10.1",
     "minimist": "^1.2.0",
-    "read-torrent": "^1.3.1",
-    "torrent-tracker": "0.x.x"
+    "read-torrent": "^1.3.1"
+  },
+  "devDependencies": {
+    "jest": "^23.6.0"
   }
 }
