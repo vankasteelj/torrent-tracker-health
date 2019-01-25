@@ -11,7 +11,12 @@ function read(uri, options) {
 
     options = utils.rearrange(options);
 
-    var torrents = await Promise.all(uris.map(p => singleRead(p, options)));
+    // Get only the ones without read errors
+    var allTorrents = await Promise.all(uris.map(p => singleRead(p, options).catch(e => e)));
+    var torrents = allTorrents.filter(result => !(result instanceof Error));
+
+    utils.debug(torrents);
+
     resolve({
       torrents: torrents,
       options: options
@@ -23,7 +28,6 @@ function singleRead(uri, options) {
   return new Promise((resolve, reject) => {
     readTorrent(uri, (err, info) => {
       if (!err) {
-
         // Make sure info.announce is an array
         if (!Array.isArray(info.announce)) {
           info.announce = info.announce ? [info.announce] : [];
@@ -44,7 +48,7 @@ function singleRead(uri, options) {
           files: info.files
         });
       } else {
-        utils.debug('Error in read-torrent: ' + err.message);
+        utils.debug('Error in read-torrent: ' + err.message +  ' for torrent uri: ' + uri);
         reject(err);
       }
     });
