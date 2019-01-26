@@ -12,7 +12,7 @@ Get health info for torrents. This module is based on [torrent-tracker](https://
 
 ```js
 var torrentHealth = require('torrent-tracker-health');
-var uri = // Could be a magnet link, torrent file location, or torrent directory.
+var uri = // Could be a magnet link, torrent file location, torrent directory, or line delimited list of infohashes.
 torrentHealth(uri, options).then(res => {
     console.log(res);
 });
@@ -24,7 +24,7 @@ torrentHealth(uri, options).then(res => {
 $ npm i -g torrent-tracker-health
 $ torrent-tracker-health -h
 Usage: torrent-tracker-health [options]
-  --torrent: the torrent file, magnet link, or torrent dir
+  --torrent: the torrent file, magnet link, torrent dir, or a file of line-delimited list of infohashes
   --trackers= [Optional] {tracker1/announce, tracker2/announce}, uses a default list otherwise
   --batchSize: [Optional] The number of torrents to include in the scrape request (Default 50)
   --showAllFetches: [Optional] Shows all the scrapes, instead of choosing the one with the most seeders(Default false)

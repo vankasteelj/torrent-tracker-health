@@ -5,7 +5,7 @@ var torrentHealth = require('./index.js'),
 if (argv._.length !== 0 || !argv.torrent) {
   console.error([
     'Usage: torrent-tracker-health [options]',
-    '  --torrent: the torrent file, magnet link, or torrent dir',
+    '  --torrent: the torrent file, magnet link, torrent dir, or a file of line-delimited list of infohashes',
     '  --trackers= [Optional] {tracker1/announce, tracker2/announce}, uses a default list otherwise',
     '  --batchSize: [Optional] The number of torrents to include in the scrape request (Default 50)',
     '  --showAllFetches: [Optional] Shows all the scrapes, instead of choosing the one with the most seeders(Default false)',

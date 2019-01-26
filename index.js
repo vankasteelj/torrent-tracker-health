@@ -4,10 +4,9 @@ var utils = require('./utils'),
 
 function read(uri, options) {
   return new Promise(async (resolve, reject) => {
-    var uris = [];
 
     // If its a torrent directory, collect them up
-    var uris = (utils.isDir(uri)) ? utils.torrentFilesInDir(uri) : [uri];
+    var uris = utils.collectUris(uri);
 
     options = utils.rearrange(options);
 

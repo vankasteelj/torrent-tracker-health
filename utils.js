@@ -45,13 +45,34 @@ function isDir(path) {
     var stat = fs.lstatSync(path);
     return stat.isDirectory();
   } catch (e) {
-    // lstatSync throws an error if path doesn't exist
     return false;
   }
 }
 
+function isFile(path) {
+  try {
+    var stat = fs.lstatSync(path);
+    return stat.isFile();
+  } catch (e) {
+    return false;
+  }
+}
+
+function collectUris(uri) {
+  if (isDir(uri)) {
+    return torrentFilesInDir(uri);
+  } 
+  // If its a file that doesn't end in .torrent
+  else if (isFile(uri) && uri.split('.').pop() !== 'torrent') {
+    return fs.readFileSync(uri, 'utf-8').split('\n').map(f => 'magnet:?xt=urn:btih:' + f);
+  }
+  // If its a magnet link or single torrent file
+  else {
+    return [uri];
+  }
+}
 function torrentFilesInDir(dir) {
   return fs.readdirSync(dir).map(file => path.join(dir, file)).filter(f => f.endsWith('.torrent'));
 }
 
-module.exports = { rearrange, torrentFilesInDir, isDir, debug, defaultTrackers };
+module.exports = { rearrange, torrentFilesInDir, isDir, isFile, collectUris, debug, defaultTrackers };
