@@ -63,7 +63,7 @@ function scrape(req) {
     var hashes = req.torrents.map(t => t.hash);
 
     // Do in 50 torrent batches
-    for (var i = 0; i < hashes.length; i += req.options.batchSize) {
+    for (var i = 0; i < hashes.length -1; i += req.options.batchSize) {
       promises.push(new Promise((resolve, reject) => {
         var subhashes = hashes.slice(i, i + req.options.batchSize);
         Client.scrape({ announce: trUri, infoHash: subhashes }, (err, data) => {
