@@ -40,11 +40,12 @@ function singleRead(uri, options) {
             delete f.offset;
           });
         }
+        var created = (info.created) ? info.created : new Date().toISOString();
         resolve({
           name: info.name,
           hash: info.infoHash,
           length: info.length,
-          created: info.created,
+          created: created,
           files: info.files
         });
       } else {
