@@ -48,7 +48,7 @@ function singleRead(uri, options) {
           files: info.files
         });
       } else {
-        utils.debug('Error in read-torrent: ' + err.message +  ' for torrent uri: ' + uri);
+        utils.debug('Error in read-torrent: ' + err.message + ' for torrent uri: ' + uri);
         reject(err);
       }
     });
@@ -63,54 +63,71 @@ function scrape(req) {
     var hashes = req.torrents.map(t => t.hash);
 
     // Do in 50 torrent batches
-    for (var i = 0; i < hashes.length -1; i += req.options.batchSize) {
-      promises.push(new Promise((resolve, reject) => {
-        var subhashes = hashes.slice(i, i + req.options.batchSize);
-        Client.scrape({ announce: trUri, infoHash: subhashes }, (err, data) => {
-          if (err) {
-            if (err.message === 'timed out' || err.code === 'ETIMEDOUT') {
-              utils.debug('Scrape timed out for ' + trUri);
+    for (var i = 0; i < hashes.length; i += req.options.batchSize) {
+      var subhashes = hashes.slice(i, i + req.options.batchSize);
+      if (subhashes[0] !== undefined) {
+        promises.push(new Promise((resolve, reject) => {
+          Client.scrape({ announce: trUri, infoHash: subhashes }, (err, data) => {
+            if (err) {
+              if (err.message === 'timed out' || err.code === 'ETIMEDOUT') {
+                utils.debug('Scrape timed out for ' + trUri);
+              } else {
+                utils.debug('Error in torrent-tracker: ' + err.message);
+              }
+              resolve({
+                tracker: trUri,
+                error: err.message
+              });
             } else {
-              utils.debug('Error in torrent-tracker: ' + err.message);
-            }
-            resolve({
-              tracker: trUri,
-              error: err.message
-            });
-          } else {
-            utils.debug('Scrape successful for ' + trUri);
+              utils.debug('Scrape successful for ' + trUri);
 
-            // Coerce single fetch as same structure as multiple
-            var firstHash = subhashes[0];
-            if (data[firstHash] == undefined) {
-              var map = {};
-              map[firstHash] = data;
-              data = map;
-            }
+              // Coerce single fetch as same structure as multiple
+              var firstHash = subhashes[0];
+              if (data[firstHash] == undefined) {
+                var map = {};
+                map[firstHash] = data;
+                data = map;
+              }
 
-            let list = Object.entries(data).map(e => {
-              var torrent = Object.assign({}, req.torrents.find(t => t.hash === e[0]));
-              torrent.seeders = e[1].complete;
-              torrent.completed = e[1].downloaded;
-              torrent.leechers = e[1].incomplete;
-              torrent.tracker = trUri;
-              return torrent;
-            });
-            resolve({
-              torrents: list,
-              options: req.options
-            });
-          }
-        });
-      }));
+              let list = Object.entries(data).map(e => {
+                var torrent = Object.assign({}, req.torrents.find(t => t.hash === e[0]));
+                torrent.seeders = e[1].complete;
+                torrent.completed = e[1].downloaded;
+                torrent.leechers = e[1].incomplete;
+                torrent.tracker = trUri;
+                return torrent;
+              });
+              resolve({
+                torrents: list,
+                options: req.options
+              });
+            }
+          });
+        }));
+      }
     }
   });
 
-  return Promise.all(promises);
+  return Promise.series(promises);
 }
 
+Promise.series = function series(arrayOfPromises) {
+  var results = [];
+  return arrayOfPromises.reduce(function (seriesPromise, promise) {
+    return seriesPromise.then(function () {
+      return promise
+        .then(function (result) {
+          results.push(result);
+        });
+    });
+  }, Promise.resolve())
+    .then(function () {
+      return results;
+    });
+};
+
 function calc(res) {
-  var options = res[0].options;
+  var options = res.find(r => r.options !== undefined).options;
   var torrents = res.map(t => t.torrents).filter(Boolean);
 
   var flattened = torrents.reduce((a, b) => a.concat(b), []);

@@ -39,7 +39,7 @@ test('Infohashes file', async () => {
 
 test('Torrent directory show all fetches', async () => {
   let res = await torrentHealth(dir, { showAllFetches: true });
-  expect(res.results[0].fetches.length).toEqual(5);
+  expect(res.results[0].fetches.length).toBeGreaterThan(3);
 });
 
 test('Magnet link', async () => {
