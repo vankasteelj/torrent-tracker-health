@@ -10,9 +10,10 @@ function read(uri, options) {
 
     options = utils.rearrange(options);
 
-    // Get only the ones without read errors
+    // Get only the ones without read errors, and uniq infohashes
     var allTorrents = await Promise.all(uris.map(p => singleRead(p, options).catch(e => e)));
-    var torrents = allTorrents.filter(result => !(result instanceof Error));
+    var noErrors = allTorrents.filter(result => !(result instanceof Error));
+    var torrents = noErrors.filter((e, i) => noErrors.findIndex(a => a.hash === e.hash) === i);
 
     resolve({
       torrents: torrents,
