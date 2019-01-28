@@ -16,8 +16,7 @@ const defaultTrackers = [
   "udp://9.rarbg.to:2710/announce",
   "udp://exodus.desync.com:6969/announce",
   "udp://tracker1.itzmx.com:8080/announce",
-  "udp://explodie.org:6969/announce",
-  "http://tracker3.itzmx.com:6961/announce",
+  "udp://explodie.org:6969/announce"
 ];
 
 function rearrange(options) {
