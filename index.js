@@ -5,7 +5,7 @@ var utils = require('./utils'),
 function read(uri, options) {
   return new Promise(async (resolve, reject) => {
 
-    // If its a torrent directory, collect them up
+    // If its a torrent directory or infohash file, collect them up
     var uris = utils.collectUris(uri);
 
     options = utils.rearrange(options);
@@ -13,8 +13,6 @@ function read(uri, options) {
     // Get only the ones without read errors
     var allTorrents = await Promise.all(uris.map(p => singleRead(p, options).catch(e => e)));
     var torrents = allTorrents.filter(result => !(result instanceof Error));
-
-    utils.debug(torrents);
 
     resolve({
       torrents: torrents,
@@ -55,124 +53,79 @@ function singleRead(uri, options) {
   });
 }
 
-function scrape(req) {
-  var promises = [];
+async function scrapeAll(req) {
 
-  // Loop over trackers
-  req.options.trackers.map(trUri => {
-    var hashes = req.torrents.map(t => t.hash);
+  // Loop over trackers and hashes in batches
+  var hashes = req.torrents.map(t => t.hash);
+  let slices = utils.chunk(hashes, req.options.batchSize);
 
-    // Do in 50 torrent batches
-    for (var i = 0; i < hashes.length; i += req.options.batchSize) {
-      var subhashes = hashes.slice(i, i + req.options.batchSize);
-      if (subhashes[0] !== undefined) {
-        promises.push(new Promise((resolve, reject) => {
-          Client.scrape({ announce: trUri, infoHash: subhashes }, (err, data) => {
-            if (err) {
-              if (err.message === 'timed out' || err.code === 'ETIMEDOUT') {
-                utils.debug('Scrape timed out for ' + trUri);
-              } else {
-                utils.debug('Error in torrent-tracker: ' + err.message);
-              }
-              resolve({
-                tracker: trUri,
-                error: err.message
-              });
-            } else {
-              utils.debug('Scrape successful for ' + trUri);
+  for (const subhashes of slices) {
+    for (const trUri of req.options.trackers) {
+      let data = await scrape(trUri, subhashes);
 
-              // Coerce single fetch as same structure as multiple
-              var firstHash = subhashes[0];
-              if (data[firstHash] == undefined) {
-                var map = {};
-                map[firstHash] = data;
-                data = map;
-              }
-
-              let list = Object.entries(data).map(e => {
-                var torrent = Object.assign({}, req.torrents.find(t => t.hash === e[0]));
-                torrent.seeders = e[1].complete;
-                torrent.completed = e[1].downloaded;
-                torrent.leechers = e[1].incomplete;
-                torrent.tracker = trUri;
-                return torrent;
-              });
-              resolve({
-                torrents: list,
-                options: req.options
-              });
-            }
+      // Add the peer counts to the req
+      Object.entries(data).map(e => {
+        var torrent = req.torrents.find(t => t.hash === e[0]);
+        if (torrent) {
+          if (!torrent.fetches) torrent.fetches = [];
+          torrent.fetches.push({
+            seeders: e[1].complete,
+            completed: e[1].downloaded,
+            leechers: e[1].incomplete,
+            tracker: trUri,
           });
-        }));
-      }
+        }
+      });
     }
-  });
+  }
 
-  return Promise.series(promises);
+  return req;
 }
 
-Promise.series = function series(arrayOfPromises) {
-  var results = [];
-  return arrayOfPromises.reduce(function (seriesPromise, promise) {
-    return seriesPromise.then(function () {
-      return promise
-        .then(function (result) {
-          results.push(result);
+function scrape(trUri, infohashes) {
+  return new Promise((resolve, reject) => {
+    Client.scrape({ announce: trUri, infoHash: infohashes }, (err, data) => {
+
+      if (err) {
+        if (err.message === 'timed out' || err.code === 'ETIMEDOUT') {
+          utils.debug('Scrape timed out for ' + trUri);
+        } else {
+          utils.debug('Error in torrent-tracker: ' + err.message);
+        }
+        resolve({
+          tracker: trUri,
+          error: err.message
         });
-    });
-  }, Promise.resolve())
-    .then(function () {
-      return results;
-    });
-};
+      } else {
+        utils.debug('Scrape successful for ' + trUri);
 
-function calc(res) {
-  var options = res.find(r => r.options !== undefined).options;
-  var torrents = res.map(t => t.torrents).filter(Boolean);
+        // Coerce single fetch as same structure as multiple
+        var firstHash = infohashes[0];
+        if (data[firstHash] == undefined) {
+          var map = {};
+          map[firstHash] = data;
+          data = map;
+        }
 
-  var flattened = torrents.reduce((a, b) => a.concat(b), []);
-
-  var groupedByHash = flattened.reduce(
-    (result, i) => ({
-      ...result,
-      [i.hash]: [
-        ...(result[i.hash] || []),
-        i,
-      ],
-    }), {},
-  );
-
-  var grouped = Object.entries(groupedByHash).map(e => {
-    let first = e[1].find(h => h.hash !== undefined);
-    let fetches = e[1].map(f => {
-      return {
-        tracker: f.tracker,
-        seeders: f.seeders,
-        leechers: f.leechers,
-        completed: f.completed,
-        error: f.error
+        resolve(data);
       }
     });
-
-    return {
-      name: first.name,
-      hash: first.hash,
-      length: first.length,
-      created: first.created,
-      files: first.files,
-      fetches: fetches
-    }
   });
+}
+
+function calc(res) {
+  var options = res.options;
+  var torrents = res.torrents;
 
   // Early return if they want all the fetches
   if (options.showAllFetches) {
     return {
-      results: grouped,
+      results: torrents,
       options: options
     }
   }
 
-  var maxes = grouped.map(f => {
+  var maxes = torrents.map(f => {
     var maxFetch = f.fetches.reduce((a, b) => a.seeders > b.seeders ? a : b);
     return {
       name: f.name,
@@ -187,8 +140,6 @@ function calc(res) {
     }
   });
 
-  utils.debug(`lengths\n-------\nflattened: ${flattened.length}\nmaxes: ${maxes.length}`);
-
   return {
     results: maxes,
     options: options
@@ -197,6 +148,6 @@ function calc(res) {
 
 module.exports = function (uri, options) {
   return read(uri, options)
-    .then(scrape)
-    .then(calc)
-};
+    .then(scrapeAll)
+    .then(calc);
+}

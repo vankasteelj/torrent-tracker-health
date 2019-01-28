@@ -13,7 +13,7 @@ const dir = 'test_torrent_dir';
 const torrentFile = 'test_torrent_dir/Lenin - The State and Revolution [audiobook] by dessalines~20161013-170437.torrent';
 const infoHashesFile = dir + '/infohashes.txt';
 
-jest.setTimeout(20000);
+jest.setTimeout(60000);
 
 test('Tracker Scrape', () => {
   Client.scrape({ announce: utils.defaultTrackers[0], infoHash: hashes }, function (err, data) {

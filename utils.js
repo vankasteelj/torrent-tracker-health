@@ -8,11 +8,16 @@ function debug() {
 }
 
 const defaultTrackers = [
-  'udp://tracker.coppersurfer.tk:6969/announce',
-  'udp://tracker.internetwarriors.net:1337/announce',
-  'udp://tracker.opentrackr.org:1337/announce',
-  'udp://exodus.desync.com:6969/announce',
-  'udp://explodie.org:6969/announce'
+  "udp://tracker.coppersurfer.tk:6969/announce",
+  "udp://tracker.open-internet.nl:6969/announce",
+  "udp://tracker.leechers-paradise.org:6969/announce",
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://tracker.internetwarriors.net:1337/announce",
+  "udp://9.rarbg.to:2710/announce",
+  "udp://exodus.desync.com:6969/announce",
+  "udp://tracker1.itzmx.com:8080/announce",
+  "udp://explodie.org:6969/announce",
+  "http://tracker3.itzmx.com:6961/announce",
 ];
 
 function rearrange(options) {
@@ -64,15 +69,24 @@ function collectUris(uri) {
   } 
   // If its a file that doesn't end in .torrent
   else if (isFile(uri) && uri.split('.').pop() !== 'torrent') {
-    return fs.readFileSync(uri, 'utf-8').split('\n').map(f => 'magnet:?xt=urn:btih:' + f);
+    return fs.readFileSync(uri).toString().trim().split('\n').map(f => 'magnet:?xt=urn:btih:' + f);
   }
   // If its a magnet link or single torrent file
   else {
     return [uri];
   }
 }
+
 function torrentFilesInDir(dir) {
   return fs.readdirSync(dir).map(file => path.join(dir, file)).filter(f => f.endsWith('.torrent'));
 }
 
-module.exports = { rearrange, torrentFilesInDir, isDir, isFile, collectUris, debug, defaultTrackers };
+function chunk(inputArray, perChunk) {
+  return inputArray.reduce((all, one, i) => {
+    const ch = Math.floor(i / perChunk);
+    all[ch] = [].concat((all[ch] || []), one);
+    return all
+  }, []);
+}
+
+module.exports = { rearrange, torrentFilesInDir, isDir, isFile, collectUris, chunk, debug, defaultTrackers };
